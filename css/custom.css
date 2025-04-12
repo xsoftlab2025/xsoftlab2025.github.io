@@ -1,0 +1,12 @@
+/* your styles go here */
+
+.app_icon {
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+     
+    box-shadow: 0 3px 2px rgba(0, 0, 0, 0.3);
+}

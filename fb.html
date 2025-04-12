@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反馈数据表格</title>
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <style>
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Fade-in animation for table rows */
+        .table-row {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Hover effect for table rows */
+        .table-row:hover {
+            background-color: #f1f5f9;
+            transition: background-color 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    <div class="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-gray-900 sm:text-5xl">反馈数据</h1>
+            <p class="mt-3 text-lg text-gray-600">实时查看用户提交的反馈信息</p>
+        </header>
+
+        <div class="bg-white shadow-2xl rounded-xl overflow-hidden">
+            <div id="loading" class="flex justify-center items-center py-16 bg-gray-50">
+                <div class="loader rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+                <p class="ml-4 text-lg text-gray-600 font-medium">加载数据中...</p>
+            </div>
+
+            <div id="error" class="hidden py-12 text-center bg-red-50">
+                <p class="text-lg font-semibold text-red-600">加载数据时出错，请稍后再试。</p>
+            </div>
+
+            <div id="content" class="hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider">时间</th>
+                                <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider">类型</th>
+                                <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider">邮箱</th>
+                                <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider">内容</th>
+                               
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-200">
+                            <!-- 数据将在这里动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                    <div class="flex-1 flex items-center justify-between">
+                        <p id="resultCount" class="text-sm text-gray-600">
+                            共 <span class="font-semibold text-gray-900">0</span> 条结果
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const contentEl = document.getElementById('content');
+            const tableBodyEl = document.getElementById('tableBody');
+            const resultCountEl = document.getElementById('resultCount').querySelector('span');
+
+            // 格式化日期函数
+            function formatDate(dateString) {
+                const timestamp = Number(dateString);
+                const date = new Date(timestamp * 1000);
+                return new Intl.DateTimeFormat('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).format(date);
+            }
+
+            // 获取数据
+            fetch('https://8ayi66pqs1.execute-api.us-east-2.amazonaws.com/Prod/feedbacks')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络请求失败');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingEl.classList.add('hidden');
+                    contentEl.classList.remove('hidden');
+
+                    resultCountEl.textContent = data.length;
+                    let feedbackTypes = {
+                        "feedbackType_1":"网络故障",
+                        "feedbackType_2":"网络速度慢",
+                        "feedbackType_3":"充值问题",
+                        "feedbackType_4":"软件bug"
+                        
+                    } 
+
+                    data.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        
+                        let typeText = '-';
+                        // 处理类型字段
+                        if (item.type) {
+                            const types = item.type.split(',');
+                            typeText = types
+                                .map(type => feedbackTypes[type.trim()] || type.trim())
+                                .join('、');
+                        }
+                        row.className = 'table-row';
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 max-w-[130px] overflow-hidden text-ellipsis">${item.dateAdded ? formatDate(item.dateAdded) : '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 max-w-[150px] overflow-hidden text-ellipsis">${typeText}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600  max-w-[200px] overflow-hidden text-ellipsis">
+                                       ${item.email ? `<a href="mailto:${item.email}?subject=回复：${encodeURIComponent('反馈问题处理')}&body=${encodeURIComponent('您好，关于您反馈的问题，我们会尽快处理。\n\n原始反馈内容：' + item.content)}" class="text-blue-600 hover:text-blue-800 hover:underline">${item.email}</a>` : '-'}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600">
+                                <div class="max-w-md break-words">${item.content}</div>
+                            </td>
+                            
+                        `;
+
+                        tableBodyEl.appendChild(row);
+                    });
+
+                    if (data.length === 0) {
+                        const emptyRow = document.createElement('tr');
+                        emptyRow.innerHTML = `
+                            <td colspan="5" class="px-6 py-6 text-center text-sm text-gray-500">暂无数据</td>
+                        `;
+                        tableBodyEl.appendChild(emptyRow);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    loadingEl.classList.add('hidden');
+                    errorEl.classList.remove('hidden');
+                });
+        });
+    </script>
+</body>
+</html>
